@@ -9,7 +9,7 @@ import { UserOperation } from '../test/UserOperation'
 import { TransactionReceipt } from '@ethersproject/abstract-provider/src.ts/index'
 import { clearInterval } from 'timers'
 import { Create2Factory } from './Create2Factory'
-import { getCreate2Address, hexConcat, keccak256 } from 'ethers/lib/utils'
+import { getCreate2Address, hexConcat, keccak256, hexlify, hexZeroPad } from 'ethers/lib/utils'
 import { HashZero } from '../test/testutils'
 
 export type SendUserOp = (userOp: UserOperation) => Promise<TransactionResponse | undefined>
@@ -228,7 +228,9 @@ export class AASigner extends Signer {
   }
 
   async _deploymentAddress (): Promise<string> {
-    return getCreate2Address(Create2Factory.contractAddress, HashZero, keccak256(await this._deploymentTransaction()))
+    // return getCreate2Address(Create2Factory.contractAddress, HashZero, keccak256(await this._deploymentTransaction()))
+    const saltBytes32 = hexZeroPad(hexlify(this.index), 32)
+    return getCreate2Address(Create2Factory.contractAddress, saltBytes32, keccak256(await this._deploymentTransaction()))
   }
 
   async _deploymentTransaction (): Promise<BytesLike> {
@@ -372,6 +374,7 @@ export class AASigner extends Signer {
     let initCode: BytesLike | undefined
     if (this._isPhantom) {
       const initCallData = new Create2Factory(this.provider!).getDeployTransactionCallData(hexValue(await this._deploymentTransaction()), HashZero)
+//      const initCallData = new Create2Factory(this.provider!).getDeployTransactionCallData(hexValue(await this._deploymentTransaction()), this.index)
 
       initCode = hexConcat([
         Create2Factory.contractAddress,

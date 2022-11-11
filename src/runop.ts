@@ -16,14 +16,14 @@ import { TransactionReceipt } from '@ethersproject/abstract-provider/src.ts/inde
   const aa_url = process.env.AA_URL
 
   // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
-  if (aa_url == null && !process.env.FORCE_DEPLOY) {
-    await hre.run('deploy')
-    const chainId = await hre.getChainId()
-    if (chainId.match(/1337/) == null) {
-      console.log('chainid=', chainId)
-      await hre.run('etherscan-verify')
-    }
-  }
+  // if (aa_url == null && !process.env.FORCE_DEPLOY) {
+  //   await hre.run('deploy')
+  //   const chainId = await hre.getChainId()
+  //   if (chainId.match(/1337/) == null) {
+  //     console.log('chainid=', chainId)
+  //     await hre.run('etherscan-verify')
+  //   }
+  // }
   const [entryPointAddress, testCounterAddress] = await Promise.all([
     hre.deployments.get('EntryPoint').then(d => d.address),
     hre.deployments.get('TestCounter').then(d => d.address)
@@ -76,7 +76,7 @@ import { TransactionReceipt } from '@ethersproject/abstract-provider/src.ts/inde
 
   const testCounter = TestCounter__factory.connect(testCounterAddress, aasigner)
 
-  const prebalance = await provider.getBalance(myAddress)
+  let prebalance = await provider.getBalance(myAddress)
   console.log('balance=', prebalance.div(1e9).toString(), 'deposit=', preDeposit.div(1e9).toString())
   console.log('estimate direct call', { gasUsed: await testCounter.connect(ethersSigner).estimateGas.justemit().then(t => t.toNumber()) })
   const ret = await testCounter.justemit()
@@ -86,16 +86,22 @@ import { TransactionReceipt } from '@ethersproject/abstract-provider/src.ts/inde
   if (netname !== 'unknown') {
     console.log('rcpt', rcpt.transactionHash, `https://dashboard.tenderly.co/tx/${netname}/${rcpt.transactionHash}/gas-usage`)
   }
-  const gasPaid = prebalance.sub(await provider.getBalance(myAddress))
-  const depositPaid = preDeposit.sub(await entryPoint.balanceOf(myAddress))
-  console.log('paid (from balance)=', gasPaid.toNumber() / 1e9, 'paid (from deposit)', depositPaid.div(1e9).toString(), 'gasUsed=', rcpt.gasUsed)
-  const logs = await entryPoint.queryFilter('*' as any, rcpt.blockNumber)
-  console.log(logs.map((e: any) => ({ ev: e.event, ...objdump(e.args!) })))
+  let gasPaid = prebalance.sub(await provider.getBalance(myAddress))
+  let depositPaid = preDeposit.sub(await entryPoint.balanceOf(myAddress))
+  console.log('paid (from balance)=', gasPaid.div(1e9).toString(), ' gwei; paid (from deposit)', depositPaid.div(1e9).toString(), ' gwei; gasUsed=', rcpt.gasUsed)
+  console.log(gasPaid.div(1e9).add(depositPaid.div(1e9)).toString() )
+  // const logs = await entryPoint.queryFilter('*' as any, rcpt.blockNumber)
+  // console.log(logs.map((e: any) => ({ ev: e.event, ...objdump(e.args!) })))
   console.log('1st run gas used:', await evInfo(rcpt))
 
-  const ret1 = await testCounter.justemit()
-  const rcpt2 = await ret1.wait()
-  console.log('2nd run:', await evInfo(rcpt2))
+  // prebalance = await provider.getBalance(myAddress)
+  // const ret1 = await testCounter.justemit()
+  // const rcpt2 = await ret1.wait()
+  // gasPaid = prebalance.sub(await provider.getBalance(myAddress))
+  // depositPaid = preDeposit.sub(await entryPoint.balanceOf(myAddress))
+  // console.log('paid (from balance)=', gasPaid.div(1e9).toString(), 'paid (from deposit)', depositPaid.div(1e9).toString(), 'gasUsed=', rcpt.gasUsed)
+  // console.log(gasPaid.div(1e9).add(depositPaid.div(1e9)).toString() )
+  // console.log('2nd run:', await evInfo(rcpt2))
 
   async function evInfo (rcpt: TransactionReceipt): Promise<any> {
     // TODO: checking only latest block...
@@ -104,9 +110,10 @@ import { TransactionReceipt } from '@ethersproject/abstract-provider/src.ts/inde
     // if (ev.length === 0) return {}
     return ev.map(event => {
       const { nonce, actualGasCost, actualGasPrice } = event.args
-      const gasPaid = actualGasCost.div(actualGasPrice).toNumber()
+      const gasPaidAmount = actualGasCost.div(actualGasPrice).toNumber()
+      const gasPaid = actualGasCost.div(1e9).toNumber()
       const gasUsed = rcpt.gasUsed.toNumber()
-      return { nonce: nonce.toNumber(), gasPaid, gasUsed: gasUsed, diff: gasUsed - gasPaid }
+      return { nonce: nonce.toNumber(), gasPaid, gasUsed: gasUsed, diff: gasUsed - gasPaidAmount }
     })
   }
 })()
