@@ -373,8 +373,8 @@ export class AASigner extends Signer {
 
     let initCode: BytesLike | undefined
     if (this._isPhantom) {
-      const initCallData = new Create2Factory(this.provider!).getDeployTransactionCallData(hexValue(await this._deploymentTransaction()), HashZero)
-//      const initCallData = new Create2Factory(this.provider!).getDeployTransactionCallData(hexValue(await this._deploymentTransaction()), this.index)
+      // const initCallData = new Create2Factory(this.provider!).getDeployTransactionCallData(hexValue(await this._deploymentTransaction()), HashZero)
+     const initCallData = new Create2Factory(this.provider!).getDeployTransactionCallData(hexValue(await this._deploymentTransaction()), this.index)
 
       initCode = hexConcat([
         Create2Factory.contractAddress,
